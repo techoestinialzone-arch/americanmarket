@@ -207,7 +207,7 @@ export default function LandingPage() {
                   </svg>
                   End-to-End Encrypted
                 </div>
-                <span>SHA-256</span>
+                <span>Anonymous</span>
               </div>
             </div>
           </div>

@@ -11,12 +11,10 @@ import crypto from "crypto";
 // 🔐 ENCRYPTION UTILITIES (AES-256-CBC)
 // ────────────────────────────────────────────────
 
-// Ensure you have ENCRYPTION_KEY in your .env file (must be 32 chars)
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default_insecure_key_change_me_now"; 
-const IV_LENGTH = 16; // For AES, this is always 16 bytes
+const IV_LENGTH = 16; 
 
 function encrypt(text: string) {
-  // Prevent encrypting if key is weak in production
   if (process.env.NODE_ENV === 'production' && ENCRYPTION_KEY.length !== 32) {
     throw new Error("Invalid ENCRYPTION_KEY length. Must be 32 bytes.");
   }
@@ -28,7 +26,6 @@ function encrypt(text: string) {
   return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
-// Exported so other parts of your app can decrypt when needed
 export async function decrypt(text: string) {
   const textParts = text.split(':');
   const iv = Buffer.from(textParts.shift()!, 'hex');
@@ -52,22 +49,14 @@ async function requireAdmin() {
     include: { user: true },
   });
 
-  // 1. Check if session exists
-  if (!session) {
-    throw new Error("Unauthorized: Session not found");
-  }
+  if (!session) throw new Error("Unauthorized: Session not found");
 
-  // 2. 🟢 CRITICAL SECURITY FIX: Check if session is expired
   if (session.expiresAt < new Date()) {
-    // Clean up dead session
     await prisma.session.delete({ where: { id: sessionId } }); 
     throw new Error("Unauthorized: Session expired");
   }
 
-  // 3. Check Admin Role
-  if (session.user.role !== "ADMIN") {
-    throw new Error("Access Denied: Admins Only");
-  }
+  if (session.user.role !== "ADMIN") throw new Error("Access Denied: Admins Only");
 
   return session.user;
 }
@@ -138,12 +127,11 @@ export async function approveDeposit(depositId: string) {
 // 💳 INVENTORY MANAGEMENT
 // ────────────────────────────────────────────────
 
-// 🟢 VALIDATION SCHEMA (Includes American Express)
 const cardSchema = z.object({
+  bin: z.string().min(6).max(8), // 🟢 Validates the new BIN field
   pan: z.string().min(13).max(19),
   exp: z.string(),
   cvv: z.string(),
-  // Explicitly validate supported networks
   brand: z.enum([
     "visa", 
     "mastercard", 
@@ -160,7 +148,6 @@ const cardSchema = z.object({
   price: z.coerce.number(),
 });
 
-// 2. Add Card (Encrypted)
 export async function addCardInventory(formData: FormData) {
   await requireAdmin();
 
@@ -171,20 +158,19 @@ export async function addCardInventory(formData: FormData) {
     return { success: false, error: parsed.error.issues[0].message };
   }
 
-  const { pan, cvv, ...data } = parsed.data;
+  const { pan, cvv, bin, ...data } = parsed.data;
 
   try {
-    // 🔒 Encrypt sensitive data before saving
     const encryptedPan = encrypt(pan);
     const encryptedCvv = encrypt(cvv);
 
     await prisma.card.create({
       data: {
         ...data,
-        bin: pan.substring(0, 6),
+        bin: bin, // 🟢 Uses manual BIN from form
         last4: pan.slice(-4),
-        fullPan: encryptedPan, // Stored as 'iv:ciphertext'
-        cvv: encryptedCvv,     // Stored as 'iv:ciphertext'
+        fullPan: encryptedPan, 
+        cvv: encryptedCvv,     
         status: "live",
         vbv: "non-vbv"
       }
@@ -198,7 +184,6 @@ export async function addCardInventory(formData: FormData) {
   }
 }
 
-// 3. Get Inventory List
 export async function getInventoryList() {
   await requireAdmin();
   return await prisma.card.findMany({
@@ -214,12 +199,10 @@ export async function getInventoryList() {
       price: true,
       status: true,
       createdAt: true
-      // Note: We deliberately do NOT select fullPan or cvv here for safety
     }
   });
 }
 
-// 4. Delete Card
 export async function deleteCard(cardId: string) {
   await requireAdmin();
   try {
@@ -231,11 +214,11 @@ export async function deleteCard(cardId: string) {
   }
 }
 
-// 5. Update Card
 export async function updateCard(formData: FormData) {
   await requireAdmin();
 
   const id = formData.get("id") as string;
+  const bin = formData.get("bin") as string; // 🟢 Get BIN from Edit Modal
   const price = parseFloat(formData.get("price") as string);
   const balance = parseFloat(formData.get("balance") as string);
   const status = formData.get("status") as string;
@@ -246,6 +229,7 @@ export async function updateCard(formData: FormData) {
     await prisma.card.update({
       where: { id },
       data: {
+        bin, // 🟢 Update BIN
         price,
         balance,
         status
@@ -259,25 +243,19 @@ export async function updateCard(formData: FormData) {
 }
 
 // ────────────────────────────────────────────────
-// 👥 USER MANAGEMENT
+// 👥 USER MANAGEMENT & HISTORY (Unchanged)
 // ────────────────────────────────────────────────
+
 export async function getUsers() {
   await requireAdmin();
   return await prisma.user.findMany({
     where: { role: { not: "ADMIN" } },
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      email: true,
-      balance: true
-    },
+    select: { id: true, email: true, balance: true },
     take: 100
   });
 }
 
-// ────────────────────────────────────────────────
-// 📜 TRANSACTION HISTORY
-// ────────────────────────────────────────────────
 export async function getTransactionHistory() {
   await requireAdmin();
   
@@ -302,31 +280,25 @@ export async function getTransactionHistory() {
 }
 
 // ────────────────────────────────────────────────
-// 🔐 AUTH & SETTINGS
+// 🔐 AUTH & SETTINGS (Unchanged)
 // ────────────────────────────────────────────────
+
 export async function adminLogin(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    
-    // Check if user exists and is ADMIN
     if (!user || user.role !== "ADMIN") {
-      // Fake delay to prevent timing attacks
       await new Promise(resolve => setTimeout(resolve, 500)); 
       return { success: false, error: "Access Denied" };
     }
 
-    // 🔒 SECURE: Verify password using bcrypt
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-    
-    if (!passwordMatch) {
-      return { success: false, error: "Invalid Credentials" };
-    }
+    if (!passwordMatch) return { success: false, error: "Invalid Credentials" };
 
     const session = await prisma.session.create({
-      data: { userId: user.id, expiresAt: new Date(Date.now() + 86400000) } // 24 hours
+      data: { userId: user.id, expiresAt: new Date(Date.now() + 86400000) } 
     });
 
     const cookieStore = await cookies();
@@ -339,7 +311,6 @@ export async function adminLogin(formData: FormData) {
 
     return { success: true };
   } catch (error) {
-    console.error("Login Error:", error);
     return { success: false, error: "Login Failed" };
   }
 }
@@ -347,32 +318,20 @@ export async function adminLogin(formData: FormData) {
 export async function logout() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get("session_id")?.value;
-
   if (sessionId) {
-    // 🗑️ Delete from Database (Revoke Access immediately)
-    await prisma.session.deleteMany({
-      where: { id: sessionId }
-    });
+    await prisma.session.deleteMany({ where: { id: sessionId } });
   }
-
-  // 🗑️ Delete Cookie
   cookieStore.delete("session_id");
-
   revalidatePath("/");
   return { success: true };
 }
 
 export async function changeAdminPassword(newPass: string) {
   const admin = await requireAdmin();
-  
-  if (newPass.length < 8) {
-    return { success: false, error: "Password too short (min 8 chars)" };
-  }
+  if (newPass.length < 8) return { success: false, error: "Password too short" };
 
   try {
-    // 🔒 SECURE: Hash new password before saving
     const hashedPassword = await bcrypt.hash(newPass, 12);
-
     await prisma.user.update({
       where: { id: admin.id },
       data: { passwordHash: hashedPassword } 

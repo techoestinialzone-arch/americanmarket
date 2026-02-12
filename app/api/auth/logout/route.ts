@@ -1,15 +1,24 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { NextResponse } from "next/server";
 
 export async function POST() {
-  const sid = cookies().get("session_id")?.value;
+  // 🟢 FIX: Await the cookies() promise before using it
+  const cookieStore = await cookies();
+  const sid = cookieStore.get("session_id")?.value;
 
   if (sid) {
-    await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+    try {
+      await prisma.session.delete({ where: { id: sid } });
+    } catch (e) {
+      // Ignore error if session already deleted
+    }
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set("session_id", "", { path: "/", maxAge: 0 });
-  return res;
+  const response = NextResponse.json({ success: true });
+  
+  // Delete the cookie from the browser
+  response.cookies.delete("session_id");
+
+  return response;
 }

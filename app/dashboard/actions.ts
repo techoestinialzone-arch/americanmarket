@@ -5,7 +5,37 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { Prisma } from "@prisma/client"; // 👈 Added this import
+import { Prisma } from "@prisma/client";
+import crypto from "crypto"; // 🟢 Added for decryption
+
+// ────────────────────────────────────────────────
+// 🔐 DECRYPTION UTILITIES
+// ────────────────────────────────────────────────
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || ""; 
+
+async function decryptData(text: string) {
+  try {
+    if (!text || !text.includes(':')) return text;
+    
+    // Security check: Key must be exactly 32 chars for AES-256
+    if (ENCRYPTION_KEY.length !== 32) {
+      console.error("Decryption failed: ENCRYPTION_KEY must be 32 characters.");
+      return "CONFIG_ERROR";
+    }
+
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift()!, 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+    
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch (e) {
+    console.error("Decryption failed:", e);
+    return "DECRYPTION_ERROR";
+  }
+}
 
 // ────────────────────────────────────────────────
 // 1. INPUT VALIDATION
@@ -42,7 +72,7 @@ async function getAuthenticatedUser() {
 }
 
 // ────────────────────────────────────────────────
-// 2. FETCH INVENTORY
+// 2. FETCH INVENTORY (MARKETPLACE)
 // ────────────────────────────────────────────────
 export async function fetchSecureInventory(input: any) {
   const user = await getAuthenticatedUser();
@@ -55,23 +85,19 @@ export async function fetchSecureInventory(input: any) {
   
   const { page, pageSize, filters, sort } = parseResult.data;
   
-  // 1. Filter: Only show LIVE cards
   const whereClause: Prisma.CardWhereInput = { status: "live" }; 
   
-  // 2. Dynamic Filters
   if (filters?.brand) whereClause.brand = filters.brand;
   if (filters?.country) whereClause.country = filters.country;
   if (filters?.vbv) whereClause.vbv = filters.vbv;
   if (filters?.type) whereClause.type = filters.type;
   
-  // 3. Search
   if (filters?.search) {
     whereClause.OR = [
       { bin: { contains: filters.search } },
     ];
   }
 
-  // 🟢 FIX: Explicitly type the orderBy object for Prisma
   const orderBy: Prisma.CardOrderByWithRelationInput = sort 
     ? { [sort.key]: sort.direction } 
     : { price: 'asc' };
@@ -87,7 +113,6 @@ export async function fetchSecureInventory(input: any) {
         prisma.card.count({ where: whereClause })
     ]);
 
-    // 4. Map Data
     const sanitizedCards = cards.map(card => ({
         id: card.id,
         brand: card.brand,
@@ -96,7 +121,7 @@ export async function fetchSecureInventory(input: any) {
         country: card.country,
         type: card.type,
         vbv: card.vbv,
-        balance: 0, // Hidden until bought
+        balance: 0, 
         price: card.price,
         currency: card.currency,
         status: card.status,
@@ -126,7 +151,6 @@ export async function buyCardAction(cardId: string) {
   if (!user) return { success: false, error: "Unauthorized" };
 
   try {
-    // Rate Limiting
     const lastOrder = await prisma.order.findFirst({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
@@ -135,11 +159,9 @@ export async function buyCardAction(cardId: string) {
 
     if (lastOrder) {
         const timeSinceLastOrder = new Date().getTime() - lastOrder.createdAt.getTime();
-        // Return structured error
         if (timeSinceLastOrder < 2000) return { success: false, error: "Please wait..." };
     }
 
-    // Transaction
     const result = await prisma.$transaction(async (tx) => {
         const card = await tx.card.findUnique({ where: { id: cardId } });
         if (!card) throw new Error("Card not found");
@@ -149,20 +171,16 @@ export async function buyCardAction(cardId: string) {
             throw new Error("Insufficient Funds");
         }
 
-        // Use updateMany to safely claim the card atomically
         const updateResult = await tx.card.updateMany({
             where: { id: cardId, status: "live" },
             data: { 
                 status: "sold", 
-                // @ts-ignore - Prisma types sometimes struggle with updateMany relations
                 soldToUserId: user.id 
             }
         });
         
-        // If count is 0, someone else bought it milliseconds ago
         if (updateResult.count === 0) throw new Error("Card unavailable");
 
-        // Now link it properly via ID since we own it (Redundant but safe for relations)
         await tx.card.update({
              where: { id: cardId },
              data: { soldToUserId: user.id }
@@ -239,7 +257,7 @@ export async function submitDepositProof(formData: FormData) {
 }
 
 // ────────────────────────────────────────────────
-// 5. FETCH USER CARDS
+// 5. FETCH USER CARDS (NOW WITH DECRYPTION)
 // ────────────────────────────────────────────────
 export async function fetchUserCards() {
   const user = await getAuthenticatedUser();
@@ -254,11 +272,11 @@ export async function fetchUserCards() {
       orderBy: { createdAt: "desc" }
     });
 
-    // 🟢 DECRYPT DATA BEFORE SENDING TO CLIENT
+    // 🟢 Decrypt the data using the helper function
     const decryptedCards = await Promise.all(cards.map(async (card) => {
         return {
             ...card,
-            // Decrypt the sensitive fields
+            // Decrypting sensitive fields before sending to the client
             fullPan: card.fullPan ? await decryptData(card.fullPan) : "N/A",
             cvv: card.cvv ? await decryptData(card.cvv) : "N/A",
         };

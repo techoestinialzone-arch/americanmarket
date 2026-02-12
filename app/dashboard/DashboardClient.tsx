@@ -333,6 +333,8 @@ function DepositModal({ onClose }: { onClose: () => void }) {
     const [amount, setAmount] = useState("");
     const [file, setFile] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    
+    // Updated wallet context
     const walletAddress = "0x6e3E388a0d9aCda78a98ae016B6a05344968DF7f";
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -367,9 +369,12 @@ function DepositModal({ onClose }: { onClose: () => void }) {
                 <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">✕</button>
                 <div className="p-6">
                     <h3 className="text-xl font-bold text-white mb-1">Deposit Funds</h3>
-                    <p className="text-xs text-slate-500 mb-6">Send USDT (BEP20/ERC20) to the address below.</p>
+                    {/* Updated Instruction Text */}
+                    <p className="text-xs text-slate-500 mb-6">Send <strong>USDT (ERC20)</strong> via <strong>Trust Wallet</strong> to the address below.</p>
+                    
                     <div className="bg-[#151b2d] p-4 rounded-lg border border-indigo-500/20 mb-6 relative group">
-                        <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Official Wallet Address</label>
+                        {/* Updated Label */}
+                        <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Trust Wallet (ERC20 USDT)</label>
                         <div className="flex items-center justify-between gap-2">
                             <code className="text-xs sm:text-sm font-mono text-white break-all select-all">{walletAddress}</code>
                             <button onClick={copyToClipboard} className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 rounded text-indigo-400 transition-colors" title="Copy">
@@ -378,16 +383,23 @@ function DepositModal({ onClose }: { onClose: () => void }) {
                         </div>
                     </div>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div><label className="block text-xs font-medium text-slate-400 mb-1.5">Amount Sent (USD)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100.00" className="w-full bg-[#0f1623] border border-slate-700 rounded-lg pl-8 pr-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600" required /></div>
-                        <div><label className="block text-xs font-medium text-slate-400 mb-1.5">Payment Screenshot</label><input type="file" accept="image/*" onChange={handleFileChange} className="block w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 cursor-pointer" required /></div>
-                        <button disabled={submitting} className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? "Verifying..." : "I Have Sent Payment"}</button>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1.5">Amount Sent (USD)</label>
+                            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100.00" className="w-full bg-[#0f1623] border border-slate-700 rounded-lg pl-8 pr-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600" required />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1.5">Payment Screenshot</label>
+                            <input type="file" accept="image/*" onChange={handleFileChange} className="block w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 cursor-pointer" required />
+                        </div>
+                        <button disabled={submitting} className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                            {submitting ? "Verifying..." : "I Have Sent Payment"}
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
     );
 }
-
 function Navbar({ balance, onOpenDeposit, onLogout }: { balance: number, onOpenDeposit: () => void, onLogout: () => void }) {
   return (
     <nav className="border-b border-slate-800 bg-[#020617]/80 backdrop-blur-xl">

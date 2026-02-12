@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { Prisma } from "@prisma/client"; // 👈 Added this import
 
 // ────────────────────────────────────────────────
 // 1. INPUT VALIDATION
@@ -41,7 +42,7 @@ async function getAuthenticatedUser() {
 }
 
 // ────────────────────────────────────────────────
-// 2. FETCH INVENTORY (FIXED: No Bank, No Level)
+// 2. FETCH INVENTORY
 // ────────────────────────────────────────────────
 export async function fetchSecureInventory(input: any) {
   const user = await getAuthenticatedUser();
@@ -55,7 +56,7 @@ export async function fetchSecureInventory(input: any) {
   const { page, pageSize, filters, sort } = parseResult.data;
   
   // 1. Filter: Only show LIVE cards
-  const whereClause: any = { status: "live" }; 
+  const whereClause: Prisma.CardWhereInput = { status: "live" }; 
   
   // 2. Dynamic Filters
   if (filters?.brand) whereClause.brand = filters.brand;
@@ -63,14 +64,17 @@ export async function fetchSecureInventory(input: any) {
   if (filters?.vbv) whereClause.vbv = filters.vbv;
   if (filters?.type) whereClause.type = filters.type;
   
-  // 3. Search (Removed 'bank' to prevent crash)
+  // 3. Search
   if (filters?.search) {
     whereClause.OR = [
       { bin: { contains: filters.search } },
     ];
   }
 
-  const orderBy = sort ? { [sort.key]: sort.direction } : { price: 'asc' };
+  // 🟢 FIX: Explicitly type the orderBy object for Prisma
+  const orderBy: Prisma.CardOrderByWithRelationInput = sort 
+    ? { [sort.key]: sort.direction } 
+    : { price: 'asc' };
 
   try {
     const [cards, totalItems] = await Promise.all([
@@ -83,7 +87,7 @@ export async function fetchSecureInventory(input: any) {
         prisma.card.count({ where: whereClause })
     ]);
 
-    // 4. Map Data (Strictly matching your new Schema)
+    // 4. Map Data
     const sanitizedCards = cards.map(card => ({
         id: card.id,
         brand: card.brand,
@@ -91,7 +95,6 @@ export async function fetchSecureInventory(input: any) {
         last4: "****", 
         country: card.country,
         type: card.type,
-        // ❌ Removed 'bank' and 'level' here
         vbv: card.vbv,
         balance: 0, // Hidden until bought
         price: card.price,
@@ -120,7 +123,7 @@ export async function fetchSecureInventory(input: any) {
 // ────────────────────────────────────────────────
 export async function buyCardAction(cardId: string) {
   const user = await getAuthenticatedUser();
-  if (!user) return { error: "Unauthorized" };
+  if (!user) return { success: false, error: "Unauthorized" };
 
   try {
     // Rate Limiting
@@ -132,7 +135,8 @@ export async function buyCardAction(cardId: string) {
 
     if (lastOrder) {
         const timeSinceLastOrder = new Date().getTime() - lastOrder.createdAt.getTime();
-        if (timeSinceLastOrder < 2000) return { error: "Please wait..." };
+        // Return structured error
+        if (timeSinceLastOrder < 2000) return { success: false, error: "Please wait..." };
     }
 
     // Transaction
@@ -145,12 +149,24 @@ export async function buyCardAction(cardId: string) {
             throw new Error("Insufficient Funds");
         }
 
+        // Use updateMany to safely claim the card atomically
         const updateResult = await tx.card.updateMany({
             where: { id: cardId, status: "live" },
-            data: { status: "sold", soldToUserId: user.id }
+            data: { 
+                status: "sold", 
+                // @ts-ignore - Prisma types sometimes struggle with updateMany relations
+                soldToUserId: user.id 
+            }
         });
-
+        
+        // If count is 0, someone else bought it milliseconds ago
         if (updateResult.count === 0) throw new Error("Card unavailable");
+
+        // Now link it properly via ID since we own it (Redundant but safe for relations)
+        await tx.card.update({
+             where: { id: cardId },
+             data: { soldToUserId: user.id }
+        });
 
         const updatedUser = await tx.user.update({
             where: { id: user.id },
@@ -185,7 +201,13 @@ export async function buyCardAction(cardId: string) {
 export async function logoutAction() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get("session_id")?.value;
-  if (sessionId) await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+  
+  if (sessionId) {
+    try {
+        await prisma.session.delete({ where: { id: sessionId } });
+    } catch(e) {}
+  }
+  
   cookieStore.delete("session_id");
   redirect("/login");
 }
@@ -215,6 +237,9 @@ export async function submitDepositProof(formData: FormData) {
     return { success: false, error: "Failed to submit deposit." };
   }
 }
+
+// ────────────────────────────────────────────────
+// 5. FETCH USER CARDS
 // ────────────────────────────────────────────────
 export async function fetchUserCards() {
   const user = await getAuthenticatedUser();

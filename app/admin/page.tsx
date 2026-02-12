@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   getAdminStats, 
@@ -212,9 +212,19 @@ export default function AdminDashboard() {
                                     <Icons.CreditCard /> Card Attributes
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                                    <div className="md:col-span-6"><FormInput label="Full PAN" name="pan" placeholder="4532 1234 5678 9010" required /></div>
-                                    <div className="md:col-span-3"><FormInput label="Expiry (MM/YY)" name="exp" placeholder="05/29" required /></div>
-                                    <div className="md:col-span-3"><FormInput label="CVV" name="cvv" placeholder="123" required /></div>
+                                    {/* 🟢 NEW BIN FIELD */}
+                                    <div className="md:col-span-3">
+                                      <FormInput label="BIN (First 6)" name="bin" placeholder="453212" required />
+                                    </div>
+                                    <div className="md:col-span-9">
+                                      <FormInput label="Full PAN" name="pan" placeholder="4532 1234 5678 9010" required />
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <FormInput label="Expiry (MM/YY)" name="exp" placeholder="05/29" required />
+                                    </div>
+                                    <div className="md:col-span-6">
+                                      <FormInput label="CVV" name="cvv" placeholder="123" required />
+                                    </div>
                                 </div>
                             </div>
 
@@ -223,7 +233,14 @@ export default function AdminDashboard() {
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Classification</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <FormSelect label="Network" name="brand">
-                                        <option value="American Express">American Express</option><option value="visa">Visa</option><option value="mastercard">Mastercard</option><option value="amex">Amex</option><option value="discover">Discover</option>
+                                        <option value="visa">Visa</option>
+                                        <option value="mastercard">Mastercard</option>
+                                        <option value="american-express">American Express</option>
+                                        <option value="discover">Discover</option>
+                                        <option value="diners-club">Diners Club</option>
+                                        <option value="jcb">JCB</option>
+                                        <option value="maestro">Maestro</option>
+                                        <option value="unionpay">UnionPay</option>
                                     </FormSelect>
                                     <FormSelect label="Type" name="type">
                                         <option value="credit">Credit</option><option value="debit">Debit</option>
@@ -372,7 +389,6 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Recent Sales */}
                         <div className="bg-[#0a0a0a] border border-white/5 rounded-xl overflow-hidden shadow-xl">
                             <div className="px-6 py-4 border-b border-white/5 bg-white/[0.01]">
                                 <h3 className="text-sm font-bold text-slate-300">Recent Sales</h3>
@@ -399,7 +415,6 @@ export default function AdminDashboard() {
                             </table>
                         </div>
 
-                        {/* Completed Deposits */}
                         <div className="bg-[#0a0a0a] border border-white/5 rounded-xl overflow-hidden shadow-xl">
                             <div className="px-6 py-4 border-b border-white/5 bg-white/[0.01]">
                                 <h3 className="text-sm font-bold text-slate-300">Completed Deposits</h3>
@@ -488,6 +503,9 @@ export default function AdminDashboard() {
                 <form action={handleUpdate} className="space-y-4">
                     <input type="hidden" name="id" value={editingCard.id} />
                     
+                    {/* 🟢 BIN FIELD IN EDIT MODAL */}
+                    <FormInput label="BIN" name="bin" defaultValue={editingCard.bin} required />
+
                     <div className="grid grid-cols-2 gap-4">
                         <FormInput label="Price ($)" name="price" type="number" defaultValue={editingCard.price} required />
                         <FormInput label="Balance ($)" name="balance" type="number" defaultValue={editingCard.balance} required />

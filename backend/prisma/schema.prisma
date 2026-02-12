@@ -1,0 +1,91 @@
+// 1. Database Configuration
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 2. Client Generator
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 3. User Model (Updated with Role)
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  balance      Float     @default(0.00)
+  role         String    @default("USER") // "ADMIN" or "USER"
+  createdAt    DateTime  @default(now())
+  
+  sessions     Session[]
+  orders       Order[]
+  deposits     Deposit[]
+  cards        Card[]    @relation("BoughtCards")
+}
+
+// 4. Session Model
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String?  @unique   // <-- temporary optional
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+
+// 5. Card Model (Inventory)
+model Card {
+  id           String   @id @default(cuid())
+  // Public Info (Safe to display masked)
+  bin          String
+  last4        String   
+  brand        String   
+  country      String  
+  type         String   
+  vbv          String   
+  price        Float
+  currency     String   @default("USD")
+  balance      Int
+  
+  // Private Info (Only Admin sees this until sold)
+  fullPan      String?  // Full 16 digit number
+  exp          String?  // MM/YY
+  cvv          String?  // 3 digits
+  
+  status       String   @default("live") 
+  soldToUserId String?
+  buyer        User?    @relation("BoughtCards", fields: [soldToUserId], references: [id])
+  
+  orders       Order[]
+  createdAt    DateTime @default(now())
+}
+
+// 6. Order Model
+model Order {
+  id        String   @id @default(cuid())
+  userId    String
+  cardId    String
+  amount    Float
+  status    String   
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  card      Card     @relation(fields: [cardId], references: [id])
+}
+
+// 7. Deposit Model (New)
+model Deposit {
+  id        String   @id @default(cuid())
+  amount    Float
+  status    String   @default("PENDING") // PENDING, COMPLETED, REJECTED
+  txHash    String?  
+  createdAt DateTime @default(now())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}

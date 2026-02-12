@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { 
   fetchSecureInventory, 
@@ -10,7 +10,7 @@ import {
   fetchUserCards 
 } from "./actions";
 
-const MARKET_NAME = "Ameican Market"; 
+const MARKET_NAME = "American Market"; 
 
 // ────────────────────────────────────────────────
 // Types
@@ -49,7 +49,17 @@ type SortConfig = {
   direction: "asc" | "desc";
 };
 
-const BrandIcons: Record<string, JSX.Element> = {
+interface SortableHeaderProps {
+  label: string;
+  sortKey: keyof Card;
+  activeSort: SortConfig;
+  onSort: (key: keyof Card) => void;
+  width?: string;
+  align?: "left" | "center" | "right";
+}
+
+// 🟢 FIX: Use React.ReactNode instead of JSX.Element
+const BrandIcons: Record<string, React.ReactNode> = {
   visa: <svg className="h-6 w-auto" viewBox="0 0 48 16" fill="none"><path d="M15.2 0L11.6 15.2H7.2L10.8 0H15.2Z" fill="#fff" /><path d="M30.4 0L26.8 15.2H22.4L25.9999 0H30.4Z" fill="#fff" /><path d="M44.8 0L41.2 15.2H36.8L40.4 0H44.8Z" fill="#fff" /><path d="M4 0L0.4 15.2H-4L-0.599976 0H4Z" fill="#fff" /></svg>,
   mastercard: <svg className="h-6 w-auto" viewBox="0 0 48 30" fill="none"><circle cx="18" cy="15" r="15" fill="#EB001B" /><circle cx="30" cy="15" r="15" fill="#F79E1B" /><circle cx="24" cy="15" r="15" fill="#FF5F00" opacity="0.7" /></svg>,
   "american-express": <svg className="h-6 w-auto" viewBox="0 0 48 30" fill="none"><rect width="48" height="30" rx="4" fill="#0077CC" /><path d="M6 8H12M6 22H12M6 15H10" stroke="white" strokeWidth="2" /><text x="14" y="20" fill="white" fontSize="10" fontWeight="bold">AMEX</text></svg>,
@@ -320,43 +330,43 @@ export default function DashboardClient({ initialBalance }: { initialBalance: nu
 }
 
 function DepositModal({ onClose }: { onClose: () => void }) {
-    const [amount, setAmount] = useState("");
-    const [file, setFile] = useState<string | null>(null);
-    const [submitting, setSubmitting] = useState(false);
-    const walletAddress = "0x6e3E388a0d9aCda78a98ae016B6a05344968DF7f";
+    const [amount, setAmount] = useState("");
+    const [file, setFile] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const walletAddress = "0x6e3E388a0d9aCda78a98ae016B6a05344968DF7f";
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            const reader = new FileReader();
-            reader.onloadend = () => { setFile(reader.result as string); };
-            reader.readAsDataURL(selectedFile);
-        }
-    };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            const reader = new FileReader();
+            reader.onloadend = () => { setFile(reader.result as string); };
+            reader.readAsDataURL(selectedFile);
+        }
+    };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!amount || !file) { alert("Please enter amount and upload a screenshot."); return; }
-        setSubmitting(true);
-        const formData = new FormData();
-        formData.append("amount", amount);
-        formData.append("screenshot", file);
-        const res = await submitDepositProof(formData);
-        setSubmitting(false);
-        if (res.success) { alert("Deposit Submitted! Admin will verify shortly."); onClose(); } else { alert("Error: " + res.error); }
-    };
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!amount || !file) { alert("Please enter amount and upload a screenshot."); return; }
+        setSubmitting(true);
+        const formData = new FormData();
+        formData.append("amount", amount);
+        formData.append("screenshot", file);
+        const res = await submitDepositProof(formData);
+        setSubmitting(false);
+        if (res.success) { alert("Deposit Submitted! Admin will verify shortly."); onClose(); } else { alert("Error: " + res.error); }
+    };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(walletAddress);
-        alert("Address copied!");
-    };
+        navigator.clipboard.writeText(walletAddress);
+        alert("Address copied!");
+    };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-[#0B101B] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">✕</button>
-                <div className="p-6">
-                    <h3 className="text-xl font-bold text-white mb-1">Deposit Funds</h3>
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-[#0B101B] border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">✕</button>
+                <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-1">Deposit Funds</h3>
                     <p className="text-xs text-slate-500 mb-6">Send USDT (BEP20/ERC20) to the address below.</p>
                     <div className="bg-[#151b2d] p-4 rounded-lg border border-indigo-500/20 mb-6 relative group">
                         <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-2">Official Wallet Address</label>
@@ -367,15 +377,15 @@ function DepositModal({ onClose }: { onClose: () => void }) {
                             </button>
                         </div>
                     </div>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div><label className="block text-xs font-medium text-slate-400 mb-1.5">Amount Sent (USD)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100.00" className="w-full bg-[#0f1623] border border-slate-700 rounded-lg pl-8 pr-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600" required /></div>
-                        <div><label className="block text-xs font-medium text-slate-400 mb-1.5">Payment Screenshot</label><input type="file" accept="image/*" onChange={handleFileChange} className="block w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 cursor-pointer" required /></div>
-                        <button disabled={submitting} className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? "Verifying..." : "I Have Sent Payment"}</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    );
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div><label className="block text-xs font-medium text-slate-400 mb-1.5">Amount Sent (USD)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100.00" className="w-full bg-[#0f1623] border border-slate-700 rounded-lg pl-8 pr-4 py-2.5 text-sm text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600" required /></div>
+                        <div><label className="block text-xs font-medium text-slate-400 mb-1.5">Payment Screenshot</label><input type="file" accept="image/*" onChange={handleFileChange} className="block w-full text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 cursor-pointer" required /></div>
+                        <button disabled={submitting} className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">{submitting ? "Verifying..." : "I Have Sent Payment"}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function Navbar({ balance, onOpenDeposit, onLogout }: { balance: number, onOpenDeposit: () => void, onLogout: () => void }) {

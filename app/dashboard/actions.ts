@@ -248,15 +248,25 @@ export async function fetchUserCards() {
   try {
     const cards = await prisma.card.findMany({
       where: { 
-        soldToUserId: user.id, // Only cards bought by this user
+        soldToUserId: user.id, 
         status: "sold" 
       },
       orderBy: { createdAt: "desc" }
     });
 
-    // Return FULL details (Unmasked) since the user owns them
-    return { success: true, data: cards };
+    // 🟢 DECRYPT DATA BEFORE SENDING TO CLIENT
+    const decryptedCards = await Promise.all(cards.map(async (card) => {
+        return {
+            ...card,
+            // Decrypt the sensitive fields
+            fullPan: card.fullPan ? await decryptData(card.fullPan) : "N/A",
+            cvv: card.cvv ? await decryptData(card.cvv) : "N/A",
+        };
+    }));
+
+    return { success: true, data: decryptedCards };
   } catch (error) {
+    console.error("Fetch User Cards Error:", error);
     return { success: false, data: [] };
   }
 }

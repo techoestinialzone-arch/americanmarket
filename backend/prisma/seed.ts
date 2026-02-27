@@ -1,5 +1,5 @@
-const { PrismaClient } = require("@prisma/client");
-const bcrypt = require("bcryptjs");
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -7,8 +7,8 @@ async function main() {
   console.log("🌱 Starting database seeding...");
 
   // 1. Define Admin Credentials
-  const adminEmail = "tmarket290@gmail.com"; // Change this to your preferred email
-  const adminPassword = "Brock...31"; // Change this to a strong password
+  const adminEmail = "tmarket290@gmail.com"; 
+  const adminPassword = "Brock...31"; 
 
   // 2. Hash the password
   const hashedPassword = await bcrypt.hash(adminPassword, 12);

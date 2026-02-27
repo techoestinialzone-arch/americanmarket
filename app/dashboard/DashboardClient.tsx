@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -58,7 +58,7 @@ type SortConfig = {
 };
 
 // --- Icons & Assets ---
-const BrandIcons: Record<string, JSX.Element> = {
+const BrandIcons: Record<string, React.ReactNode> = {
   visa: <svg className="h-6 w-auto" viewBox="0 0 48 16" fill="none"><path d="M15.2 0L11.6 15.2H7.2L10.8 0H15.2Z" fill="#fff" /><path d="M30.4 0L26.8 15.2H22.4L25.9999 0H30.4Z" fill="#fff" /><path d="M44.8 0L41.2 15.2H36.8L40.4 0H44.8Z" fill="#fff" /><path d="M4 0L0.4 15.2H-4L-0.599976 0H4Z" fill="#fff" /></svg>,
   mastercard: <svg className="h-6 w-auto" viewBox="0 0 48 30" fill="none"><circle cx="18" cy="15" r="15" fill="#EB001B" /><circle cx="30" cy="15" r="15" fill="#F79E1B" /><circle cx="24" cy="15" r="15" fill="#FF5F00" opacity="0.7" /></svg>,
   "american-express": <svg className="h-6 w-auto" viewBox="0 0 48 30" fill="none"><rect width="48" height="30" rx="4" fill="#0077CC" /><path d="M6 8H12M6 22H12M6 15H10" stroke="white" strokeWidth="2" /><text x="14" y="20" fill="white" fontSize="10" fontWeight="bold">AMEX</text></svg>,
@@ -183,8 +183,7 @@ export default function DashboardClient({ initialBalance }: { initialBalance: nu
 
   const handleLogout = async () => { await logoutAction(); };
   const resetFilters = () => { setFilters({ search: "", brand: "", country: "", vbv: "", type: "", balance: "" }); setPage(1); };
-  const handleSort = (key: keyof Card) => setSortConfig((curr) => ({ key, direction: curr.key === key && curr.direction === "asc" ? "desc" : "asc" }));
-
+  
   const toggleReveal = (id: string) => {
     setRevealedCards(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -383,7 +382,7 @@ export default function DashboardClient({ initialBalance }: { initialBalance: nu
                         <th className="px-6 py-4">Full PAN</th>
                         <th className="px-6 py-4">Expiry</th>
                         <th className="px-6 py-4">CVV</th>
-                        <th className="px-6 py-4">Type</th> {/* ✅ ADDED TYPE HEADER */}
+                        <th className="px-6 py-4">Type</th>
                         <th className="px-6 py-4">Country</th>
                         <th className="px-6 py-4 text-right">Cost</th>
                       </tr>
@@ -397,7 +396,7 @@ export default function DashboardClient({ initialBalance }: { initialBalance: nu
                         <tr key={card.id} className="hover:bg-white/[0.02] transition-colors">
                           <td className="px-6 py-4"><div className="w-10">{BrandIcons[card.brand] || <span className="text-slate-500 capitalize">{card.brand}</span>}</div></td>
                           
-                          {/* PAN COLUMN */}
+                          {/* ✅ SECURE REVEAL PAN COLUMN */}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <span className={`font-mono tracking-wider font-bold ${isDecryptionError ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -405,6 +404,7 @@ export default function DashboardClient({ initialBalance }: { initialBalance: nu
                               </span>
                               {!isDecryptionError && card.fullPan && card.fullPan !== "N/A" && (
                                 <div className="flex gap-1">
+                                  {/* Eye Icon to Reveal/Hide */}
                                   <button onClick={() => toggleReveal(card.id)} className="p-1.5 text-slate-500 hover:text-indigo-400 transition-colors" title={isRevealed ? "Hide Details" : "Reveal Details"}>
                                     {isRevealed ? (
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
@@ -412,6 +412,7 @@ export default function DashboardClient({ initialBalance }: { initialBalance: nu
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                     )}
                                   </button>
+                                  {/* Copy Icon */}
                                   {isRevealed && (
                                     <button onClick={() => handleCopy(card.fullPan!)} className="p-1.5 text-slate-500 hover:text-emerald-400 transition-colors" title="Copy PAN">
                                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
@@ -428,7 +429,6 @@ export default function DashboardClient({ initialBalance }: { initialBalance: nu
                              {!isDecryptionError ? (isRevealed ? card.cvv : "***") : "ERR"}
                           </td>
                           
-                          {/* ✅ ADDED TYPE COLUMN */}
                           <td className="px-6 py-4">
                               <span className="px-2 py-1 rounded text-xs bg-slate-800 text-slate-300 uppercase font-bold tracking-wider">{card.type}</span>
                           </td>

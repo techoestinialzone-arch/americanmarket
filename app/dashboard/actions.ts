@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { Prisma } from "@prisma/client"; 
-import crypto from "crypto"; // ✅ REQUIRED FOR DECRYPTION
+import crypto from "crypto"; 
 
 // ────────────────────────────────────────────────
 // 🔐 DECRYPTION UTILITIES
@@ -45,7 +45,7 @@ const inventorySchema = z.object({
     country: z.string().trim().optional(),
     vbv: z.enum(["vbv", "non-vbv"]).optional(),
     type: z.enum(["credit", "debit"]).optional(),
-    price: z.coerce.number().optional(), // ✅ YOUR ADDED PRICE FILTER
+    price: z.coerce.number().optional(), 
   }).optional(),
   sort: z.object({
     key: z.enum(["price", "balance", "country", "brand"]),
@@ -89,7 +89,7 @@ export async function fetchSecureInventory(input: any) {
   if (filters?.country) whereClause.country = filters.country;
   if (filters?.vbv) whereClause.vbv = filters.vbv;
   if (filters?.type) whereClause.type = filters.type;
-  if (filters?.price) whereClause.price = filters.price; // ✅ APPLY PRICE FILTER
+  if (filters?.price) whereClause.price = filters.price; 
   
   // 3. Search
   if (filters?.search) {
@@ -98,7 +98,8 @@ export async function fetchSecureInventory(input: any) {
     ];
   }
 
-  const orderBy = sort ? { [sort.key]: sort.direction } : { price: 'asc' };
+  // ✅ FIX: Explicitly cast to 'any' to bypass strict Prisma relation type errors during build
+  const orderBy: any = sort ? { [sort.key]: sort.direction } : { price: 'asc' };
 
   try {
     const [cards, totalItems] = await Promise.all([
@@ -120,7 +121,7 @@ export async function fetchSecureInventory(input: any) {
         country: card.country,
         type: card.type,
         vbv: card.vbv,
-        balance: card.balance, // ✅ REVEAL ACTUAL BALANCE
+        balance: card.balance, 
         price: card.price,
         currency: card.currency,
         status: card.status,
@@ -147,7 +148,7 @@ export async function fetchSecureInventory(input: any) {
 // ────────────────────────────────────────────────
 export async function buyCardAction(cardId: string) {
   const user = await getAuthenticatedUser();
-  if (!user) return { success: false, error: "Unauthorized" }; // Fix: Added success: false
+  if (!user) return { success: false, error: "Unauthorized" }; 
 
   try {
     // Rate Limiting
@@ -159,7 +160,7 @@ export async function buyCardAction(cardId: string) {
 
     if (lastOrder) {
         const timeSinceLastOrder = new Date().getTime() - lastOrder.createdAt.getTime();
-        if (timeSinceLastOrder < 2000) return { success: false, error: "Please wait..." }; // Fix
+        if (timeSinceLastOrder < 2000) return { success: false, error: "Please wait..." }; 
     }
 
     // Transaction
@@ -244,7 +245,7 @@ export async function submitDepositProof(formData: FormData) {
 }
 
 // ────────────────────────────────────────────────
-// 5. FETCH USER CARDS (✅ NOW WITH DECRYPTION)
+// 5. FETCH USER CARDS
 // ────────────────────────────────────────────────
 export async function fetchUserCards() {
   const user = await getAuthenticatedUser();

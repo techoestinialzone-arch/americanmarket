@@ -3,7 +3,10 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
-  const sid = cookies().get("session_id")?.value;
+  // ✅ Added 'await' here to fix the Promise error
+  const cookieStore = await cookies();
+  const sid = cookieStore.get("session_id")?.value;
+
   if (!sid) return NextResponse.json({ user: null }, { status: 200 });
 
   const session = await prisma.session.findUnique({

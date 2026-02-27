@@ -1,6 +1,6 @@
 // 1. Database Configuration
 datasource db {
-  provider = "sqlite" // Change this from "postgresql"
+  provider = "postgresql" // ✅ Changed back to postgresql for Railway
   url      = env("DATABASE_URL")
 }
 
